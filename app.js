@@ -1,11 +1,23 @@
 // import express
-const express = require('express');
+const express = require("express");
 
-// create an express app
+// Importing the user router
+const userRouter = require("./routes/userRoutes");
+
+// Importing the morgan library to log requests
+const morgan = require("morgan");
+
+// Creating an express application
 const app = express();
 
-app.get('/', (req, res) => {
-    res.send('Hello World');
-})
+// Adding middleware to parse the request body
+app.use(express.json());
 
+// to log requests
+app.use(morgan("dev"));
+
+// Creating routes
+app.use("/users", userRouter);
+
+// Export the express app
 module.exports = app;
