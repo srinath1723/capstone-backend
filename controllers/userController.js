@@ -148,7 +148,7 @@ const userController = {
         from: EMAIL_ID,
         to: email,
         subject: "Password Reset",
-        text: `Click here to reset your password: http://localhost:3004/api/v1/users/verify/${authString}`,
+        text: `Click here to activate your account: http://localhost:3004/api/v1/users/verify/${authString}`,
       });
       // Sending a success response
       res.status(200).json({
