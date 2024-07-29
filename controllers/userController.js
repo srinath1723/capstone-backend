@@ -1,78 +1,82 @@
+// Importing bcrypt library for encrypting passwords
 const bcrypt = require("bcrypt");
+// Importing the jwt library
 const jwt = require("jsonwebtoken");
+// Importing the User model
 const User = require("../models/user");
+// Importing the transporter for sending emails
 const transporter = require("../utils/transporter");
+// Importing the EMAIL_ID from the configuration file
 const { EMAIL_ID, SECRET_KEY } = require("../utils/config");
 // Importing the user helper function to generate an auth string
 const { generateRandomString } = require("../helpers/useHelper");
+
 const userController = {
   // API for registering users
   register: async (req, res) => {
     try {
-      // Extracting user data from the request body
-      const { firstName, lastName, email, password, salaryPerMonth } = req.body;
+      // Destructuring the request body
+      const { firstName, lastName, email, password, salaryPerMonth, role } =
+        req.body;
 
-      // Checking if a user with the same email already exists
+      // Checking if user already exists
       const existingUser = await User.findOne({ email });
       if (existingUser) {
-        return res.status(400).json({ message: "User with this email already exists." });
+        return res.json({ message: "This email is already registered." });
       }
-
-      // Hashing the password for security
+      // Check if the role is valid
+      const validRoles = ['user', 'admin']; // Define valid roles
+      if (role && !validRoles.includes(role)) {
+        return res.status(400).json({ message: "Invalid role specified." });
+      }
+      // Encrypting the password
       const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Creating a new user object
+      // Creating a new user
       const user = new User({
         firstName,
         lastName,
         email,
         password: hashedPassword,
         salaryPerMonth,
+        role: role || 'user' // Default role is 'user'
       });
-
-      // Saving the new user to the database
+      // Saving the user to the database
       await user.save();
-
-      // Sending an activation email to the new user
-      await transporter.sendMail({
+      // Sending email
+      transporter.sendMail({
         from: EMAIL_ID,
         to: email,
         subject: "Activate your account",
-        text: `Welcome to our service! Please activate your account by clicking the link: http://localhost:3004/users/activate/${user._id}`,
+        text: `Click here to reset your password: http://localhost:3004/api/v1/users/activate/${user._id}`,
       });
-
-      // Sending a success response with the new user details
+      // Sending a success response
       res.status(201).json({
         message: "Account created successfully. Please check your email to activate your account.",
         user,
       });
     } catch (error) {
-      // Handling errors and sending an error response
-      res.status(500).json({ message: "An error occurred while registering the user. Please try again later." });
+      // Sending an error response
+      res.status(500).json({ message: "Registration failed due to a server error. Please try again later." });
     }
   },
-
-  // API to activate the user profile
+  // API to Activate user profile
   activateUser: async (req, res) => {
     try {
-      // Getting the user ID from the request parameters
+      // Fetching the id from url params
       const { id } = req.params;
-
-      // Checking if the user exists with the provided ID
+      // Checking if the id is valid
       const user = await User.findById(id);
       if (!user) {
-        return res.status(404).json({ message: "User not found." });
+        return res.status(404).send({ message: "User not found." });
       }
-
-      // Activating the user account
+      // Updating the user status to active
       user.isActive = true;
       await user.save();
-
       // Sending a success response
-      res.status(200).json({ message: "User activated successfully." });
+      res.status(200).send({ message: "User account has been activated." });
     } catch (error) {
-      // Handling errors and sending an error response
-      res.status(500).json({ message: "An error occurred while activating the user. Please try again later." });
+      // Sending an error response
+      res.status(500).send({ message: "An error occurred while activating the account. Please try again later." });
     }
   },
   // API for user login
@@ -80,31 +84,24 @@ const userController = {
     try {
       // getting the user email and password from the request body
       const { email, password } = req.body;
-
       // checking if the user exists in the database
       const user = await User.findOne({ email });
-
       // if the user does not exist, return an error response
       if (!user) {
-        return res.status(404).send({ message: "User not found" });
+        return res.status(404).send({ message: "User not found." });
       }
-
       // if the user is not active, return an error response
       if (!user.isActive) {
-        return res.status(403).send({ message: "User account is not active" });
+        return res.status(403).send({ message: "This account is not yet active." });
       }
-
       // if the user exists check the password
       const isPasswordValid = await bcrypt.compare(password, user.password);
-
       // if the password is invalid, return an error response
       if (!isPasswordValid) {
-        return res.status(400).send({ message: "Invalid password" });
+        return res.status(400).send({ message: "Incorrect password." });
       }
-
       // generating a JWT token
       const token = jwt.sign({ id: user._id }, SECRET_KEY);
-
       // setting the token as a cookie
       res.cookie("token", token, {
         httpOnly: true,
@@ -112,26 +109,23 @@ const userController = {
         sameSite: "none",
         expires: new Date(Date.now() + 24 * 3600000), // 24 hours from login
       });
-
       // sending a success response
-      res.status(200).json({ message: "Login successful" });
+      res.status(200).json({ message: "Logged in successfully." });
     } catch (error) {
       // sending an error response
-      res.status(500).send({ message: error.message });
+      res.status(500).send({ message: "An error occurred during login. Please try again later." });
     }
   },
-
   // API for user logout
   logout: async (req, res) => {
     try {
       // clearing the cookie
       res.clearCookie("token");
-
       // sending a success response
-      res.status(200).send({ message: "Logged out successfully" });
+      res.status(200).send({ message: "Successfully logged out." });
     } catch (error) {
       // Sending an error response
-      res.status(500).send({ message: error.message });
+      res.status(500).send({ message: "An error occurred while logging out. Please try again later." });
     }
   },
   // API for sending email for the user when user wants to reset password
@@ -139,90 +133,176 @@ const userController = {
     try {
       // Extracting values from request body
       const { email } = req.body;
-
       // Checking if this email is of a valid user
       const user = await User.findOne({ email });
       if (!user) {
-        return res
-          .status(404)
-          .json({ message: "User with this email does not exist" });
+        return res.status(404).json({ message: "No account found with this email address." });
       }
-
       // Generating auth string
       const authString = generateRandomString();
-
       // Update user
       user.authString = authString;
       await user.save();
-
       // Send email
       transporter.sendMail({
         from: EMAIL_ID,
         to: email,
         subject: "Password Reset",
-        text: `Click here to reset your password: http://localhost:3004/users/verify/${authString}`,
+        text: `Click here to reset your password: http://localhost:3004/api/v1/users/verify/${authString}`,
       });
-
       // Sending a success response
       res.status(200).json({
-        message: "Password reset link has been sent to your email address",
+        message: "Password reset link sent to your email address.",
       });
     } catch (error) {
       // Sending an error response
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: "An error occurred while sending the password reset email. Please try again later." });
     }
   },
-
   // API for verifying the user auth string
   authVerify: async (req, res) => {
     try {
-      // Extracting values from request params
+      // Extracting authString from request params
       const { authString } = req.params;
-
-      // Checking if this auth string is of a valid user
+      
+      // Finding user by authString
       const user = await User.findOne({ authString });
+      
+      // If no user is found, return an error response
       if (!user) {
-        return res.status(404).json({ message: "Auth string does not match!" });
+        return res.status(404).json({ message: "Invalid authentication code." });
       }
-
-      // Sending a success response
+  
+      // If user is found, send a success response
       res.status(200).json({
-        message: "Auth String verified successfully",
+        message: "Authentication code verified successfully.",
         email: user.email,
       });
     } catch (error) {
+      // Log error for debugging
+      console.error("Error in authVerify:", error);
+  
       // Sending an error response
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: "An error occurred during verification. Please try again later." });
     }
   },
-
+  
   // API for resetting password
   resetPassword: async (req, res) => {
     try {
       // Extracting values from request body
       const { email, password } = req.body;
-
       // Checking if this email is of a valid user
       const user = await User.findOne({ email });
       if (!user) {
-        return res
-          .status(404)
-          .json({ message: "User with this email does not exist" });
+        return res.status(404).json({ message: "User with this email does not exist." });
       }
-
       // Encrypting the password
       const hashedPassword = await bcrypt.hash(password, 10);
-
       // Update user
       user.password = hashedPassword;
       user.authString = "";
       await user.save();
-
       // Sending a success response
-      res.status(200).json({ message: "Password reset successfully" });
+      res.status(200).json({ message: "Password reset successfully." });
     } catch (error) {
       // Sending an error response
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: "An error occurred while resetting the password. Please try again later." });
+    }
+  },
+
+  // API to get user profile information
+  getProfile: async (req, res) => {
+    try {
+      // Getting user id from request parameters
+      const id = req.userId;
+
+      // Fetching the user from the database
+      const user = await User.findById(
+        id,
+        "-password -isActive -authString -__v"
+      );
+
+      // If user not found, return error response
+      if (!user) {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      // If user found, return the user data
+      res.json(user);
+    } catch (error) {
+      // Sending an error response
+      res.status(500).json({ message: "An error occurred while retrieving the profile. Please try again later." });
+    }
+  },
+
+  // API to update user profile information
+  updateProfile: async (req, res) => {
+    try {
+      // Getting user id from request parameters
+      const id = req.userId;
+      const { firstName, lastName, salaryPerMonth, email,role} = req.body;
+
+      const user = await User.findById(id);
+
+      // If user not found, return error response
+      if (!user) {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      // Updating user profile information
+      user.firstName = firstName || user.firstName;
+      user.lastName = lastName || user.lastName;
+      user.salaryPerMonth = salaryPerMonth || user.salaryPerMonth;
+      user.email = email || user.email;
+      user.role = role || user.role;
+      // Saving info to the database
+      const updatedUser = await user.save();
+
+      // If user found, return the updated user data
+      res.json({ message: "User profile updated successfully.", updatedUser });
+    } catch (error) {
+      // Sending an error response
+      res.status(500).json({ message: "An error occurred while updating the profile. Please try again later." });
+    }
+  },
+
+  // API to delete user
+  deleteUser: async (req, res) => {
+    try {
+      // Getting user id from request parameters
+      const id = req.userId;
+
+      // Finding and deleting the user from the database using the id in the request parameters.
+      const user = await User.findByIdAndDelete(id);
+
+      // If user not found, return error response
+      if (!user) {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      // Removing the user cookie
+      res.clearCookie("token");
+
+      // returning success response, if user is deleted
+      res.json({ message: "User deleted successfully." });
+    } catch (error) {
+      // Sending an error response
+      res.status(500).json({ message: "An error occurred while deleting the account. Please try again later." });
+    }
+  },
+  
+  // API to fetch all users from the database
+  getAllUsers: async (req, res) => {
+    try {
+      // Fetching all users from the database
+      const users = await User.find();
+
+      // Returning the fetched users
+      res.json(users);
+    } catch (error) {
+      // Sending an error response
+      res.status(500).json({ message: "An error occurred while fetching users. Please try again later." });
     }
   },
 };
