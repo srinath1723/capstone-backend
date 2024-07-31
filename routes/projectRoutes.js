@@ -6,7 +6,7 @@ const projectController = require("../controllers/projectController");
 
 // Importing middleware
 const auth = require("../middlewares/auth");
-
+const files = require("../middlewares/multer");
 // Creating a router
 const projectRouter = express.Router();
 
@@ -15,6 +15,7 @@ projectRouter.post(
   "/",
   auth.authenticate,
   auth.authorize,
+  files.array("attachments"),
   projectController.createProject
 );
 // Route to get all projects
@@ -37,6 +38,7 @@ projectRouter.put(
     "/:id",
     auth.authenticate,
     auth.authorize,
+    files.array("attachments"),
     projectController.updateProject
   );
   
@@ -46,6 +48,21 @@ projectRouter.put(
     auth.authenticate,
     auth.authorize,
     projectController.deleteProject
+  );
+  // Route to remove attachments from a project
+projectRouter.delete(
+    "/:id/attachments/:filename",
+    auth.authenticate,
+    auth.authorize,
+    projectController.removeAttachments
+  );
+  
+  // Route to remove members from a project
+  projectRouter.delete(
+    "/:id/members/:memberId",
+    auth.authenticate,
+    auth.authorize,
+    projectController.removeMembers
   );
 // Exporting the router
 module.exports = projectRouter;

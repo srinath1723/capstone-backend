@@ -5,9 +5,10 @@ const express = require("express");
 const userController = require("../controllers/userController");
 
 const auth = require("../middlewares/auth");
+const files = require("../middlewares/multer");
 // Creating a router
 const userRouter = express.Router();
-
+userRouter.post("/", files.single("image"), userController.register);
 // Route to register a user
 userRouter.post("/", userController.register);
 
@@ -45,6 +46,7 @@ userRouter.get(
     "/",
     auth.authenticate,
     auth.isActivated,
+    files.single("image"),
     userController.updateProfile
   );
   

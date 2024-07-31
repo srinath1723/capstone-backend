@@ -16,9 +16,11 @@ const userController = {
   register: async (req, res) => {
     try {
       // Destructuring the request body
-      const { firstName, lastName, email, password, salaryPerMonth, role } =
+      const { firstName, lastName, email, password, salaryPerMonth, role,mobile } =
         req.body;
-
+        if (!req.file) {
+          return res.status(400).json({ message: "No file uploaded" });
+        }
       // Checking if user already exists
       const existingUser = await User.findOne({ email });
       if (existingUser) {
@@ -38,7 +40,9 @@ const userController = {
         email,
         password: hashedPassword,
         salaryPerMonth,
-        role: role || 'user' // Default role is 'user'
+        role: role || 'user',
+        mobile,
+        image: req.file ? req.file.path : "avatar.png",
       });
       // Saving the user to the database
       await user.save();

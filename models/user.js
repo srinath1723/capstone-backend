@@ -20,6 +20,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  mobile: {
+    type: String,
+    required: true,
+    unique: true,
+  },
   isActive: {
     type: Boolean,
     default: false,
@@ -35,6 +40,10 @@ const userSchema = new mongoose.Schema({
   salaryPerMonth: {
     type: Number,
     required: true,
+  },
+  image: {
+    type: String,
+    default: "avatar.png",
   },
 });
 
