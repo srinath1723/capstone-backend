@@ -8,6 +8,8 @@ const projectRouter = require("./routes/projectRoutes");
 
 // Importing the task router
 const taskRouter = require("./routes/taskRoutes");
+
+const subTaskRouter = require("./routes/subTaskRoutes");
 // Importing the morgan library to log requests
 const morgan = require("morgan");
 
@@ -32,5 +34,7 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/projects", projectRouter);
 
 app.use("/api/v1/projects", taskRouter);
+
+app.use("/api/v1/tasks", subTaskRouter);
 // Export the express app
 module.exports = app;

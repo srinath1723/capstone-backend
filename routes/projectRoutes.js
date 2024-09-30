@@ -64,5 +64,13 @@ projectRouter.delete(
     auth.authorize,
     projectController.removeMembers
   );
+
+  // Route to fetch completion percentage of a project
+projectRouter.get(
+  "/:id/completion",
+  auth.authenticate,
+  auth.authorize,
+  projectController.getCompletionPercentage
+);
 // Exporting the router
 module.exports = projectRouter;

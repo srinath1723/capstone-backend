@@ -60,5 +60,13 @@ taskRouter.delete(
     auth.authorize,
     taskController.removeAttachments
   );
+
+  // Route to get the task completion percentage
+taskRouter.get(
+  "/tasks/:taskId/completion",
+  auth.authenticate,
+  auth.authorize,
+  taskController.getTaskCompletionPercentage
+);
 // Exporting the router
 module.exports = taskRouter;
